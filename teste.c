@@ -64,45 +64,39 @@ processo *LerDados(const char *nomeArquivo, int *quantidade) {
     while (getline(&linha, &tamanho, fp) != -1 && i < MAX_LINHAS) {
         linha[strcspn(linha, "\r\n")] = '\0';
 
-        char *ultimo = strrchr(linha, ',');
-        if (!ultimo) continue;
-        dados[i].ano_eleicao = atoi(ultimo + 1);
-        *ultimo = '\0';
+        // Tokenização dos campos
+        char *campos[6];
+        int campo = 0;
+        char *ptr = linha;
+        int dentro_aspas = 0;
+        campos[campo++] = ptr;
 
-        // separar os campos manualmente
-        char *token = linha;
-        char *prox = strchr(token, ',');
-        if (!prox) continue;
-        *prox = '\0';
-        dados[i].id = atof(token);
+        while (*ptr && campo < 6) {
+            if (*ptr == '"') {
+                dentro_aspas = !dentro_aspas;
+            } else if (*ptr == ',' && !dentro_aspas) {
+                *ptr = '\0';
+                campos[campo++] = ptr + 1;
+            }
+            ptr++;
+        }
 
-        token = prox + 2; // pula ," 
-        prox = strchr(token, '"');
-        if (!prox) continue;
-        *prox = '\0';
-        strncpy(dados[i].numero, token, 24);
+        if (campo < 6) continue;
+
+        dados[i].id = atof(campos[0]);
+        strncpy(dados[i].numero, campos[1], 24);
         dados[i].numero[24] = '\0';
 
-        token = prox + 2; // pula ", 
-        prox = strchr(token, ',');
-        if (!prox) continue;
-        *prox = '\0';
-        strncpy(dados[i].data_ajuizamento, token, 23);
+        strncpy(dados[i].data_ajuizamento, campos[2], 23);
         dados[i].data_ajuizamento[23] = '\0';
 
-        token = prox + 1;
-        prox = strchr(token, '}');
-        if (!prox || token[0] != '{') continue;
-        *prox = '\0';
-        strncpy(dados[i].id_classe, token + 1, 99);
+        strncpy(dados[i].id_classe, campos[3], 99);
         dados[i].id_classe[99] = '\0';
 
-        token = prox + 2;
-        prox = strchr(token, '}');
-        if (!prox || token[0] != '{') continue;
-        *prox = '\0';
-        strncpy(dados[i].id_assunto, token + 1, 99);
+        strncpy(dados[i].id_assunto, campos[4], 99);
         dados[i].id_assunto[99] = '\0';
+
+        dados[i].ano_eleicao = atoi(campos[5]);
 
         apagar_aspas(dados[i].id_classe);
         apagar_aspas(dados[i].id_assunto);
@@ -127,7 +121,27 @@ void ordenar_ID(processo *dados, int qtd) {
             }
         }
     }
+
+    FILE *fp = fopen("id_ORDERNADO.csv", "w");
+    if (fp == NULL) {
+        printf("Erro ao abrir o arquivo para escrita.\n");
+        return;
+    }
+
+    // ✅ Escreve o cabeçalho
+    fprintf(fp, "id,numero,data_ajuizamento,id_classe,id_assunto,ano_eleicao\n");
+
+    for (int i = 0; i < qtd; i++) {
+        fprintf(fp, "%.0lf,\"%s\",%s,%s,%s,%d\n", dados[i].id, dados[i].numero,
+                dados[i].data_ajuizamento, dados[i].id_classe,
+                dados[i].id_assunto, dados[i].ano_eleicao);
+    }
+
+    fclose(fp);
+    printf("Arquivo id_ORDERNADO.csv criado com sucesso.\n");
+    printf("Processos ordenados por ID:\n");
 }
+
 
 void ordenar_data_ajuizamento(processo *dados, int qtd) {
     for (int i = 0; i < qtd - 1; i++) {
@@ -139,6 +153,8 @@ void ordenar_data_ajuizamento(processo *dados, int qtd) {
             }
         }
     }
+
+    
 }
 
 int calcular_dias_tramitacao(char *data_ajuizamento) {
@@ -169,11 +185,11 @@ void menu_opcao(processo *dados, int qtd) {
     switch (opcao) {
         case 1:
             ordenar_ID(dados, qtd);
-            for (int i = 0; i < qtd; i++) {
-                printf("%.0lf,\"%s\",%s,%s,%s,%d\n", dados[i].id, dados[i].numero,
-                    dados[i].data_ajuizamento, dados[i].id_classe,
-                    dados[i].id_assunto, dados[i].ano_eleicao);
-            }
+            // for (int i = 0; i < qtd; i++) {
+            //     printf("%.0lf,\"%s\",%s,%s,%s,%d\n", dados[i].id, dados[i].numero,
+            //         dados[i].data_ajuizamento, dados[i].id_classe,
+            //         dados[i].id_assunto, dados[i].ano_eleicao);
+            // }
             break;
         case 2:
             ordenar_data_ajuizamento(dados, qtd);
